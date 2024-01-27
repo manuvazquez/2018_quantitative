@@ -1,0 +1,269 @@
+# ======================================================= global parameters
+
+# number of samples per batch
+batch size: 12
+
+# the currently selected model
+model: TimedCA125
+
+# ======================================================= output files from training to be used during testing
+
+# file in which the *trained* model will be saved and/or loaded
+saved model file: saved_model.h5
+
+# file in which to save learned parameters that are not directly required by the model
+saved off-model parameters file: off_model_parameters.pickle
+
+# file to save normalization parameters
+normalization parameters file: normalization_parameters.pickle
+
+# ======================================================= fit_model-only parameters
+
+fit_model:
+
+  # this is the number of neurons to be used when parameters are fixed rather than estimated using cross-validation
+  tentative number of neurons: 20
+
+  # this is the number of epochs to be used when
+  # i)  parameters are fixed rather than estimated using cross-validation
+  # ii) parameters are estimated using cross-validation, but independently (varying one while keeping the others fixed)
+  tentative number of epochs: 200
+
+  # this is the dropout amount to be used when
+  # i)  parameters are fixed rather than estimated using cross-validation
+  # ii) parameters are estimated using cross-validation, but independently (varying one while keeping the others fixed)
+  tentative dropout: 0.6
+
+  # =============== (input) data files
+  CA125:
+    healthy subjects file: CA125_train_healthy.csv
+    ill subjects file: CA125_train_ill.csv
+  # -------------
+  HE4:
+    healthy subjects file: HE4_train_healthy.csv
+    ill subjects file: HE4_train_ill.csv
+  # -------------
+  Gly:
+    healthy subjects file: Gly_train_healthy.csv
+    ill subjects file: Gly_train_ill.csv
+  # -------------
+
+  # a dataframe with the whole training set will be saved into this file for Python...
+  saved data file: data.pickle
+
+  # ...and MATLAB reuse
+  MATLAB saved data file: data.mat
+
+  # a file to output the selected hyperparameters
+  selected hyperparameters file: fitted_parameters.json
+
+  # one of the threshold computing algorithms specified below
+  threshold computing algorithm: FixedSpecificity
+
+  # =============== cross-validation parameters
+
+  cross-validation:
+
+    # enable cross-validation for *parameter* estimation
+    estimate parameters: true
+
+    # parameters to be tried during cross-validation
+    numbers of neurons to cross validate: [10, 20, 30]
+    numbers of epochs to cross validate: [20, 50, 100]
+    dropout to cross validate: [0.6, 0.4, 0.2]
+
+    # if true, parameters are estimated jointly (trying the elements in the cartesian product of the above lists)
+    joint estimation: true
+
+    # enable cross-validation for *performance* estimation
+    estimate performance: true
+
+    # number of *folds*
+    number of splits: 10
+
+    # if true, the data for each fold will be saved in a separate file (only *when estimating the performance*)
+    save folds: true
+
+    # one of: accuracy, sensitivity, specificity, auc
+    metric to be minimized: sensitivity
+
+# ======================================================= test-only parameters
+
+test:
+
+  # =============== (input) data files
+  CA125:
+    healthy subjects file: CA125_test_healthy.csv
+    ill subjects file: CA125_test_ill.csv
+  # -------------
+  HE4:
+    healthy subjects file: HE4_test_healthy.csv
+    ill subjects file: HE4_test_ill.csv
+  # -------------
+  Gly:
+    healthy subjects file: Gly_test_healthy.csv
+    ill subjects file: Gly_test_ill.csv
+  # -------------
+
+  saved data file: test.pickle
+  output predictions file: predictions.pickle
+  output results file: results.json
+  desired specificity: 0.9
+  clear measurements after: null
+
+  set last measurement according to diagnosis:
+    enabled: false
+    parameters:
+      less_than: 2
+      more_than: 1
+
+# ======================================================= how the decision threshold is computed
+
+available threshold computing algorithms:
+
+  FixedThreshold:
+    parameters:
+      threshold: 0.5
+
+  FixedSpecificity:
+    parameters:
+      specificity: 0.9
+
+# ======================================================= data-related parameters
+
+data:
+
+  # one of the formats defined below (UK, BD...)
+  format: BD
+
+  # settings for the different biomarkers
+  time-varying: &time_varying_data
+
+    CA125: &CA125_settings
+      # the prefix used to name the data columns for this biomarker
+      columns prefix: CA125_
+
+    HE4: &HE4_settings
+      columns prefix: HE4_
+
+    Gly: &Gly_settings
+      columns prefix: Gly_
+
+    Age:
+      columns prefix: t_
+
+  # for backward compatibility
+  CA125: *CA125_settings
+  HE4: *HE4_settings
+  Gly: *Gly_settings
+
+  # =============== available formats
+
+  BD:
+    # groups of columns that can be found in the raw data file
+    columns:
+    - ["id", "ones", "n_measurements"]
+    - ["zeros"]
+    - ["zero_padding", "t_diagnosis"]
+
+    # it specifies in which position, relative to the previous list (of lists), the group of measurement columns are
+    index measurement columns: 1
+
+    # same for time columns
+    index time columns: 3
+
+    # the maximum number of measurements across the entire file
+    maximum number of measurements: 5
+
+    # useless columns from the raw data file that are to be dropped
+    columns to be dropped:
+    - ones
+    - zeros
+    - zero_padding
+
+    # the number of column, again relative to the above list (of lists), containing the index
+    index column: 0
+
+    # these options are passed **directly** to Pandas
+    "Pandas' read_csv":
+        delim_whitespace: true
+        header: null
+
+  UK:
+    columns:
+    - ["n_measurements"]
+    - ["t_diagnosis"]
+    - ["id"]
+    index measurement columns: 2
+    index time columns: 1
+    maximum number of measurements: 17
+    columns to be dropped: []
+    index column: 36
+    "Pandas' read_csv":
+        delim_whitespace: true
+        header: null
+  new:
+    columns:
+    - ["Class"]
+    - ["n_measurements"]
+    - ["t_diagnosis"]
+    index measurement columns: 5
+    index time columns: 3
+    maximum number of measurements: 6
+    columns to be dropped: []
+    index column: 1
+    "Pandas' read_csv":
+        header: 0
+
+  John Timms:
+    columns:
+      - ['SampleID', 'n_measurements']
+      - ['t_diagnosis']
+      - ['Type']
+    index measurement columns: 2
+    index time columns: 1
+    maximum number of measurements: 7
+    columns to be dropped: []
+    index column: 0
+    "Pandas' read_csv":
+        header: 0
+
+
+
+# =======================================================
+
+data connector:
+
+  class: ExcelSpreadsheet
+
+  parameters: ExcelSpreadsheet
+
+  # =============== available parameters
+
+  ExcelSpreadsheet:
+
+    common:
+
+      time_varying_data: *time_varying_data
+
+      time_varying_columns_mapping:
+
+        Age.at.sample.taken..years.: Age
+        CA125..U.mL.: CA125
+        HE4: HE4
+
+      subject_id_column: Rand.Vol.ID
+      time_column: Age.at.sample.taken..years.
+
+      maximum_number_of_measurements: 10
+
+    fit_model:
+
+      file_name: training_set_experiment_30.06 (1).xlsx
+
+      ill_column: Cancer.Control.Status
+
+    test:
+
+      file_name: training_set_experiment_30.06 (1).xlsx
+
